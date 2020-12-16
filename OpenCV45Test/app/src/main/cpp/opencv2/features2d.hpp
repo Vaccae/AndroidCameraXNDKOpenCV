@@ -506,7 +506,7 @@ public:
           int _max_evolution=200, double _area_threshold=1.01,
           double _min_margin=0.003, int _edge_blur_size=5 );
 
-    /** @brief Detect %MSER regions
+    /** @brief DetectToRect %MSER regions
 
     @param image input image (8UC1, 8UC3 or 8UC4, must be greater or equal than 3x3)
     @param msers resulting list of point sets

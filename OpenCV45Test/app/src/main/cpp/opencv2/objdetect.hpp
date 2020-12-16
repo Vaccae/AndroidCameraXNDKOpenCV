@@ -99,7 +99,7 @@ opencv_traincascade that can train a cascade of boosted classifiers from a set o
 @note In the new C++ interface it is also possible to use LBP (local binary pattern) features in
 addition to Haar-like features. .. [Viola01] Paul Viola and Michael J. Jones. Rapid Object Detection
 using a Boosted Cascade of Simple Features. IEEE CVPR, 2001. The paper is available online at
-<http://research.microsoft.com/en-us/um/people/viola/Pubs/Detect/violaJones_CVPR2001.pdf>
+<http://research.microsoft.com/en-us/um/people/viola/Pubs/DetectToRect/violaJones_CVPR2001.pdf>
 
 @{
     @defgroup objdetect_c C API

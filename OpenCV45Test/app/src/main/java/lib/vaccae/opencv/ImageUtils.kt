@@ -2,6 +2,7 @@ package lib.vaccae.opencv
 
 import androidx.camera.core.ImageProxy
 
+
 /**
  * 作者：Vaccae
  * 邮箱：3657447@qq.com
@@ -48,6 +49,7 @@ class ImageUtils {
             return yuvBytes
         }
 
+
         //后置摄像头旋转90度
         fun rotateYUVDegree90(
             data: ByteArray,
@@ -74,6 +76,32 @@ class ImageUtils {
                     i--
                 }
                 x -= 2
+            }
+            return yuv
+        }
+
+        fun rotateYUVDegree180(
+            data: ByteArray,
+            imageWidth: Int,
+            imageHeight: Int
+        ): ByteArray? {
+            val yuv = ByteArray(imageWidth * imageHeight * 3 / 2)
+            var i = 0
+            var count = 0
+            i = imageWidth * imageHeight - 1
+            while (i >= 0) {
+                yuv[count] = data[i]
+                count++
+                i--
+            }
+
+            i = imageWidth * imageHeight * 3 / 2 - 1
+            while (i >= imageWidth
+                * imageHeight
+            ) {
+                yuv[count++] = data[i - 1]
+                yuv[count++] = data[i]
+                i -= 2
             }
             return yuv
         }

@@ -61,7 +61,7 @@ find_library( # Sets the name of the path variable.
 
 target_link_libraries( # Specifies the target library.
         opencv-lib
-        -ljnigraphics
+        jnigraphics
         libopencv_java45
 
         # Links the target library to the log library

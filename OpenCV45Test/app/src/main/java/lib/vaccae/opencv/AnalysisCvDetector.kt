@@ -2,11 +2,10 @@ package lib.vaccae.opencv
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.graphics.Matrix
-import android.graphics.RectF
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.google.android.material.snackbar.Snackbar
 
 
 /**
@@ -16,26 +15,20 @@ import androidx.camera.core.ImageProxy
  * 功能模块说明：
  */
 internal class AnalysisCvDetector(typeid: Int, view: ViewOverLay) : ImageAnalysis.Analyzer {
-    companion object {
-        //加载动态库
-        init {
-            System.loadLibrary("opencv-lib")
-        }
-    }
-    //JNI native
-    //人脸检测
-    external fun facedetector(byte: ByteArray, width: Int, height: Int):List<RectF>
-    //灰度显示
-    external fun grayShow(bytes: ByteArray, width: Int, height: Int): IntArray?
 
     //当前检测方式 0-灰度图  1-人脸检测
     private var mTypeId = typeid
     private var mView = view
-    private var count=0;
+    private var jni = OpenCVJNI()
 
-    //设置检测方式
-    fun setTypeId(int: Int){
+    //设置检测方式 0-灰度显示  1-人脸检测
+    fun setTypeId(int: Int) {
         mTypeId = int
+        //清空当前画布
+        //使用postDelayed替换Post是防止出现post加入缓存队列，但并未刷新UI的情况
+        mView.postDelayed({
+            mView.drawInit()
+        }, 50)
     }
 
 
@@ -51,31 +44,53 @@ internal class AnalysisCvDetector(typeid: Int, view: ViewOverLay) : ImageAnalysi
         try {
             //将ImageProxy图像转为ByteArray
             val buffer = ImageUtils.imageProxyToByteArray(imgProxy)
-            //根据宽度和高度将图像旋转90度
-            val bytes =ImageUtils.rotateYUVDegree90(buffer, image.width, image.height)
+            var bytes: ByteArray? = buffer
+            var w = image.width
+            var h = image.height
 
-            if(mTypeId == 0){
+            //判断如果是竖屏，图像旋转90度
+            if (mView.width < mView.height) {
+                //根据宽度和高度将图像旋转90度
+                bytes = ImageUtils.rotateYUVDegree90(buffer, w, h)
+                //设置变量当宽和高修改过来
+                w = image.height
+                h = image.width
+            } else {
+                //用的横屏PAD测试后，发布横屏的要将图像旋转180度
+                //正常的横屏应该不用处理这个，如果遇到不对，可以屏蔽这一句
+                bytes = ImageUtils.rotateYUVDegree180(buffer, w, h)
+            }
+
+            if (mTypeId == 0) {
                 //调用Jni实现灰度图并返回图像的Pixels
-                val grayPixels = grayShow(bytes!!, image.height, image.width)
+                val grayPixels = jni.grayShow(bytes!!, w, h)
                 //将Pixels转换为Bitmap然后画图
                 grayPixels?.let {
-                    val bmp = Bitmap.createBitmap(image.height, image.width, Bitmap.Config.ARGB_8888)
-                    bmp.setPixels(it, 0, image.height, 0, 0, image.height, image.width)
-                    val str = "width:${image.width}"+" height:${image.height}"
+                    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                    bmp.setPixels(it, 0, w, 0, 0, w, h)
+                    val str = "width:${w}" + " height:${h}"
 
                     mView.post {
                         mView.drawBitmap(bmp)
                         mView.drawText(str)
                     }
                 }
+            } else if (mTypeId == 1) {
+                //调用人脸检测返回矩形
+                val detectorRects = jni.facedetector(bytes!!, w, h)
+                //判断如果检测到
+                detectorRects?.let {
+                    mView.post {
+                        mView.drawRect(it, w, h)
+                    }
+                }
             }
         } catch (e: Exception) {
-            Log.d("except", e.message.toString())
-            mView.post { mView.drawText(e.message) }
+            Log.e("except", e.message.toString())
+            Snackbar.make(mView, e.message.toString(), Snackbar.LENGTH_SHORT).show()
         } finally {
             imgProxy.close()
         }
     }
-
 
 }

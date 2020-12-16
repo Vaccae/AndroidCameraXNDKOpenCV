@@ -24,6 +24,11 @@ android {
                 arguments "-DANDROID_STL=c++_shared"
             }
         }
+        ndk{
+            //找了个Android5.1的armeabi-v7a架构的平板运行时发现启动不了，搜索了一下
+            //在这里加上NDK的CPU架构后才能运行
+            abiFilters 'arm64-v8a','armeabi-v7a'
+        }
     }
 
 

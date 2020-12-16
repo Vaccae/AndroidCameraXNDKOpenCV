@@ -1,23 +1,23 @@
 package lib.vaccae.opencv
 
 import android.Manifest
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
-import android.util.Size
-import android.view.Surface
-import android.view.View
-import android.view.WindowManager
+import android.widget.TextView
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.google.android.material.snackbar.Snackbar
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -26,9 +26,24 @@ import kotlin.math.abs
 class MainActivity : AppCompatActivity() {
 
     val TAG = "OpenCVDetector"
-    lateinit var viewFinder: PreviewView
-    lateinit var vOverLay: ViewOverLay
+    val viewFinder: PreviewView by lazy {
+        findViewById(R.id.viewFinder)
+    }
+    val vOverLay: ViewOverLay by lazy {
+        findViewById(R.id.viewOverlay)
+    }
+    val btnStatus :FloatingActionButton by lazy {
+        findViewById(R.id.btnchange)
+    }
+    val tvStatus : TextView by lazy {
+        findViewById(R.id.tvStatus)
+    }
     private lateinit var analysisdetector: AnalysisCvDetector
+
+
+    //摄像头显示类型 0-灰度图 1-人脸检测
+    private var itype =0;
+    val mStatusList = mutableListOf("灰度图","人脸检测")
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
@@ -80,33 +95,120 @@ class MainActivity : AppCompatActivity() {
         } else AspectRatio.RATIO_16_9
     }
 
+    private lateinit var mFaceMdescFile: File
+    private lateinit var mFaceMBinaryFile:File
+
+    private fun copymFaceMdescFile() {
+        try {
+            // load cascade file from application resources
+            val inputStream = resources.openRawResource(R.raw.opencv_face_detector)
+            val faceDir = getDir("facedetector", MODE_PRIVATE)
+            mFaceMdescFile = File(faceDir, "opencv_face_detector.pbtxt")
+            if (mFaceMdescFile.exists()) return
+            val os: FileOutputStream = FileOutputStream(mFaceMdescFile)
+            val buffer = ByteArray(4096)
+            var bytesRead: Int
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                os.write(buffer, 0, bytesRead)
+            }
+            inputStream.close()
+            os.close()
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun copymFaceMBinaryFile() {
+        try {
+            // load cascade file from application resources
+            val inputStream = resources.openRawResource(R.raw.opencv_face_detector_uint8)
+            val faceDir = getDir("facedetector", MODE_PRIVATE)
+            mFaceMBinaryFile = File(faceDir, "opencv_face_detector_uint8.pb")
+            if (mFaceMBinaryFile.exists()) return
+            val os: FileOutputStream = FileOutputStream(mFaceMBinaryFile)
+            val buffer = ByteArray(4096)
+            var bytesRead: Int
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                os.write(buffer, 0, bytesRead)
+            }
+            inputStream.close()
+            os.close()
+        } catch (e: java.lang.Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun showtvStatus(idx:Int){
+        tvStatus.post {
+            tvStatus.text = mStatusList.get(idx)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-
-        viewFinder = findViewById(R.id.viewFinder)
-        vOverLay = findViewById(R.id.viewOverlay)
         vOverLay.bringToFront()
+        tvStatus.bringToFront()
+        showtvStatus(itype)
+
+        btnStatus.setOnClickListener {
+            itype = (++itype) % mStatusList.size ;
+            showtvStatus(itype)
+            analysisdetector.setTypeId(itype)
+        }
+
 
         if (allPermissionsGranted()) {
-            viewFinder.post { startCamera() }
+            copymFaceMBinaryFile()
+            copymFaceMdescFile()
+            val jni = OpenCVJNI()
+            val isfacedetect = jni.initFaceDetector(mFaceMBinaryFile.absolutePath,
+                mFaceMdescFile.absolutePath)
+
+            //判断如果人脸检测初始化成功就直接人脸检测
+            //itype = if(isfacedetect) 1 else 0
+
+            //实例化AnalysisCvDetector
+            analysisdetector = AnalysisCvDetector(itype, vOverLay)
+
+            viewFinder.post {
+                //锁定屏幕方向
+                lockOrientation()
+                //开启摄像头
+                startCamera()
+            }
         } else {
             ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
         }
     }
 
+    //锁定屏幕方向
+    private fun lockOrientation(){
+        //获取当前屏幕方向
+        var orient = requestedOrientation
+        //判断是否明确横屏landscape或竖屏portrait
+        if(orient != ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            && orient!= ActivityInfo.SCREEN_ORIENTATION_PORTRAIT){
+            val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
+            orient = if(metrics.widthPixels>metrics.heightPixels)
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else
+                ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+        //锁定屏幕方向
+        requestedOrientation = orient
+    }
+
     private fun startCamera() {
 
         val metrics = DisplayMetrics().also { viewFinder.display.getRealMetrics(it) }
-        Log.d("screen:","width:${metrics.widthPixels}"+ " height:${metrics.heightPixels}")
+        Log.d("screen:", "width:${metrics.widthPixels}" + " height:${metrics.heightPixels}")
         //宽高比
         val screenAspectRatio = aspectRatio(metrics.widthPixels, metrics.heightPixels)
         //旋转角度
         var rotation = viewFinder.display.rotation
 
-        //实例化AnalysisCvDetector
-        analysisdetector = AnalysisCvDetector(0, vOverLay)
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
