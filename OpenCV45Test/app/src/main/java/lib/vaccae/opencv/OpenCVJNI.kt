@@ -25,5 +25,4 @@ class OpenCVJNI {
     //灰度显示
     external fun grayShow(bytes: ByteArray, width: Int, height: Int): IntArray?
 
-
 }

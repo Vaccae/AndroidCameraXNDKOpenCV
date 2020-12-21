@@ -2,6 +2,7 @@ package lib.vaccae.opencv
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -16,12 +17,12 @@ import com.google.android.material.snackbar.Snackbar
  */
 internal class AnalysisCvDetector(typeid: Int, view: ViewOverLay) : ImageAnalysis.Analyzer {
 
-    //当前检测方式 0-灰度图  1-人脸检测
+    //当前检测方式 0-灰度图  1-人脸检测  2-换脸贴图
     private var mTypeId = typeid
     private var mView = view
     private var jni = OpenCVJNI()
 
-    //设置检测方式 0-灰度显示  1-人脸检测
+    //设置检测方式 0-灰度显示  1-人脸检测  2-换脸贴图
     fun setTypeId(int: Int) {
         mTypeId = int
         //清空当前画布
@@ -61,27 +62,43 @@ internal class AnalysisCvDetector(typeid: Int, view: ViewOverLay) : ImageAnalysi
                 bytes = ImageUtils.rotateYUVDegree180(buffer, w, h)
             }
 
-            if (mTypeId == 0) {
-                //调用Jni实现灰度图并返回图像的Pixels
-                val grayPixels = jni.grayShow(bytes!!, w, h)
-                //将Pixels转换为Bitmap然后画图
-                grayPixels?.let {
-                    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                    bmp.setPixels(it, 0, w, 0, 0, w, h)
-                    val str = "width:${w}" + " height:${h}"
+            when (mTypeId) {
+                //0-灰度图
+                0 -> {
+                    //调用Jni实现灰度图并返回图像的Pixels
+                    val grayPixels = jni.grayShow(bytes!!, w, h)
+                    //将Pixels转换为Bitmap然后画图
+                    grayPixels?.let {
+                        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                        bmp.setPixels(it, 0, w, 0, 0, w, h)
+                        val str = "width:${w}" + " height:${h}"
 
-                    mView.post {
-                        mView.drawBitmap(bmp)
-                        mView.drawText(str)
+                        mView.post {
+                            mView.drawBitmap(bmp)
+                            mView.drawText(str)
+                        }
                     }
                 }
-            } else if (mTypeId == 1) {
-                //调用人脸检测返回矩形
-                val detectorRects = jni.facedetector(bytes!!, w, h)
-                //判断如果检测到
-                detectorRects?.let {
-                    mView.post {
-                        mView.drawRect(it, w, h)
+                //1-人脸检测
+                1 -> {
+                    //调用人脸检测返回矩形
+                    val detectorRects = jni.facedetector(bytes!!, w, h)
+                    //判断如果检测到
+                    detectorRects?.let {
+                        mView.post {
+                            mView.drawRect(it, w, h)
+                        }
+                    }
+                }
+                //2-贴图换脸
+                2 -> {
+                    //调用人脸检测返回矩形
+                    val faceRects = jni.facedetector(bytes!!, w, h)
+                    //判断如果检测到
+                    faceRects?.let {
+                        mView.post {
+                            mView.drawfaceBitmap(it, w, h)
+                        }
                     }
                 }
             }
