@@ -22,6 +22,11 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
     private var mBmp: Bitmap? = null
     private var mRects: List<Rect>? = null
 
+    //人脸贴图
+    private var mFaceBitmap = BitmapFactory.decodeResource(resources, R.drawable.vaccae)
+    private var mFaceRect = Rect(0, 0, mFaceBitmap.width, mFaceBitmap.height)
+    private var mFaceRects: List<Rect>? = null
+
     //图片的与实际尺寸比
     private var mScaleWidth = 1.0f
     private var mScaleHeight = 1.0f
@@ -69,6 +74,20 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
                     canvas?.drawText(it, x, y, textpaint)
                 }
             }
+
+            mFaceRects?.let {
+                it.forEach { p ->
+                    p.left = (p.left / mScaleWidth).toInt() - 10
+                    p.top = (p.top / mScaleHeight).toInt() - 10
+                    p.right = (p.right / mScaleWidth).toInt() + 10
+                    p.bottom = (p.bottom / mScaleHeight).toInt() + 10
+
+                    canvas?.drawBitmap(
+                        mFaceBitmap, mFaceRect, p, Paint()
+                    )
+                }
+            }
+
         } catch (e: Exception) {
             e.message?.let {
                 Snackbar.make(this, it, Snackbar.LENGTH_SHORT).show()
@@ -101,6 +120,15 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
     fun drawRect(rect: List<Rect>?, w: Int = width, h: Int = height) {
         rect?.let {
             mRects = rect;
+            mScaleWidth = w.toFloat() / width
+            mScaleHeight = h.toFloat() / height
+        }
+        invalidate()
+    }
+
+    fun drawfaceBitmap(rect: List<Rect>?, w: Int = width, h: Int = height) {
+        rect?.let {
+            mFaceRects = rect
             mScaleWidth = w.toFloat() / width
             mScaleHeight = h.toFloat() / height
         }

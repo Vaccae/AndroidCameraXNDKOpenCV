@@ -3,6 +3,8 @@ package lib.vaccae.opencv
 import android.Manifest
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
@@ -40,10 +42,9 @@ class MainActivity : AppCompatActivity() {
     }
     private lateinit var analysisdetector: AnalysisCvDetector
 
-
-    //摄像头显示类型 0-灰度图 1-人脸检测
+    //摄像头显示类型 0-灰度图 1-人脸检测 2-换脸贴图
     private var itype =0;
-    val mStatusList = mutableListOf("灰度图","人脸检测")
+    val mStatusList = mutableListOf("灰度图","人脸检测","换脸贴图")
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
