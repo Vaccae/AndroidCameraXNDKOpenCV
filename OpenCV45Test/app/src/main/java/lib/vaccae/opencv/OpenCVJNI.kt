@@ -25,4 +25,6 @@ class OpenCVJNI {
     //灰度显示
     external fun grayShow(bytes: ByteArray, width: Int, height: Int): IntArray?
 
+    //QRCode检测
+    external fun qrCodeDetector(bytes: ByteArray,width :Int, height:Int): List<QrCode>?
 }

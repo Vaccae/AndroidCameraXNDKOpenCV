@@ -17,12 +17,12 @@ import com.google.android.material.snackbar.Snackbar
  */
 internal class AnalysisCvDetector(typeid: Int, view: ViewOverLay) : ImageAnalysis.Analyzer {
 
-    //当前检测方式 0-灰度图  1-人脸检测  2-换脸贴图
+    //当前检测方式 0-灰度图  1-人脸检测  2-换脸贴图  3-二维码检测
     private var mTypeId = typeid
     private var mView = view
     private var jni = OpenCVJNI()
 
-    //设置检测方式 0-灰度显示  1-人脸检测  2-换脸贴图
+    //设置检测方式 0-灰度显示  1-人脸检测  2-换脸贴图 3-二维码检测
     fun setTypeId(int: Int) {
         mTypeId = int
         //清空当前画布
@@ -98,6 +98,17 @@ internal class AnalysisCvDetector(typeid: Int, view: ViewOverLay) : ImageAnalysi
                     faceRects?.let {
                         mView.post {
                             mView.drawfaceBitmap(it, w, h)
+                        }
+                    }
+                }
+                //3-QRCode检测
+                3 -> {
+                    //调用QrCode检测
+                    val qrCodes = jni.qrCodeDetector(bytes!!, w, h)
+                    //判断如果检测到
+                    qrCodes?.let {
+                        mView.post {
+                            mView.drawQrCodes(it, w, h)
                         }
                     }
                 }

@@ -44,7 +44,7 @@ class MainActivity : AppCompatActivity() {
 
     //摄像头显示类型 0-灰度图 1-人脸检测 2-换脸贴图
     private var itype =0;
-    val mStatusList = mutableListOf("灰度图","人脸检测","换脸贴图")
+    val mStatusList = mutableListOf("灰度图","人脸检测","换脸贴图","二维码检测")
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10

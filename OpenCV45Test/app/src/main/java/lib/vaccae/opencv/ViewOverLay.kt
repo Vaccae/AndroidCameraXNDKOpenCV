@@ -5,6 +5,7 @@ import android.graphics.*
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.google.android.material.snackbar.Snackbar
@@ -22,6 +23,8 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
     private var mBmp: Bitmap? = null
     private var mRects: List<Rect>? = null
 
+    private var mQrCodes: List<QrCode>? = null
+
     //人脸贴图
     private var mFaceBitmap = BitmapFactory.decodeResource(resources, R.drawable.vaccae)
     private var mFaceRect = Rect(0, 0, mFaceBitmap.width, mFaceBitmap.height)
@@ -33,15 +36,17 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
 
     private val textpaint = TextPaint().apply {
         style = Paint.Style.FILL
-        color = ContextCompat.getColor(context!!, android.R.color.holo_blue_light)
+        color = ContextCompat.getColor(context!!, android.R.color.holo_purple)
         strokeWidth = 10f
         textSize = 60f
         isFakeBoldText = true
     }
 
+
+
     private val paint = Paint().apply {
         style = Paint.Style.STROKE
-        color = ContextCompat.getColor(context!!, android.R.color.holo_red_light)
+        color = ContextCompat.getColor(context!!, android.R.color.holo_purple)
         strokeWidth = 5f
     }
 
@@ -88,6 +93,48 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
                 }
             }
 
+            //画二维码显示
+            mQrCodes?.let {
+                it.forEach { t ->
+                    //Log.i("point:", "pt:${t.points} msg:"+t.msg)
+                    t.points?.let { pt ->
+                        //画坐标点的线
+                        //Log.i("point:", "$pt")
+                        for (i in 0 until pt.size) {
+                            if (i == pt.size - 1) {
+                                canvas?.drawLine(pt[i].x, pt[i].y, pt[0].x, pt[0].y, paint)
+                            } else {
+                                canvas?.drawLine(pt[i].x, pt[i].y, pt[i + 1].x, pt[i + 1].y, paint)
+                            }
+                        }
+
+                        t.msg?.let { m ->
+                            //输出识别的QRCode信息
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                                val builder =
+                                    StaticLayout.Builder.obtain(
+                                        m,
+                                        0,
+                                        m.length,
+                                        textpaint,
+                                        width - pt[pt.size - 1].x.toInt()
+                                    )
+                                val myStaticLayout = builder.build()
+                                canvas?.translate(pt[pt.size - 1].x, pt[pt.size - 1].y + 10)
+                                myStaticLayout.draw(canvas)
+                            } else {
+                                canvas?.drawText(
+                                    m,
+                                    pt[pt.size - 1].x,
+                                    pt[pt.size - 1].y + 10,
+                                    textpaint
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
         } catch (e: Exception) {
             e.message?.let {
                 Snackbar.make(this, it, Snackbar.LENGTH_SHORT).show()
@@ -99,6 +146,7 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
         mBmp = null
         mText = ""
         mRects = null
+        mQrCodes = null
         invalidate()
     }
 
@@ -131,6 +179,23 @@ class ViewOverLay constructor(context: Context?, attributeSet: AttributeSet?) :
             mFaceRects = rect
             mScaleWidth = w.toFloat() / width
             mScaleHeight = h.toFloat() / height
+        }
+        invalidate()
+    }
+
+    fun drawQrCodes(qrcodes: List<QrCode>?, w: Int = width, h: Int = height) {
+        qrcodes?.let {
+            mQrCodes = qrcodes
+            mScaleWidth = w.toFloat() / width
+            mScaleHeight = h.toFloat() / height
+
+            //计算偏移坐标点
+            mQrCodes?.forEach {
+                it.points?.forEach { pt ->
+                    pt.x = (pt.x / mScaleWidth)
+                    pt.y = (pt.y / mScaleHeight)
+                }
+            }
         }
         invalidate()
     }

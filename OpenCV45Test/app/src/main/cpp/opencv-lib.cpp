@@ -67,6 +67,8 @@ Java_lib_vaccae_opencv_OpenCVJNI_grayShow(JNIEnv *env, jobject thiz, jbyteArray 
         resultMat.release();
         src.release();
         gray.release();
+        width = 800;
+        height = 1480;
         return result;
     } catch (cv::Exception e) {
         jclass je = env->FindClass("java/lang/Exception");
@@ -120,19 +122,99 @@ Java_lib_vaccae_opencv_OpenCVJNI_facedetector(JNIEnv *env, jobject thiz, jbyteAr
 
         //人脸检测
         vector<vector<int>> outRects = _faceDetect.Detect(src);
-        if(outRects.size()>0){
+        if (outRects.size() > 0) {
             jclass rect_jcls = env->FindClass("android/graphics/Rect");
-            jmethodID  rect_init = env->GetMethodID(rect_jcls,"<init>","(IIII)V");
-            for(int i=0;i<outRects.size();++i){
+            jmethodID rect_init = env->GetMethodID(rect_jcls, "<init>", "(IIII)V");
+            for (int i = 0; i < outRects.size(); ++i) {
                 vector<int> point = outRects[i];
-                jobject tmprect = env->NewObject(rect_jcls,rect_init,
-                                                 (int)point[0],
-                                                 (int)point[1],
-                                                 (int)point[2],
-                                                 (int)point[3]);
+                jobject tmprect = env->NewObject(rect_jcls, rect_init,
+                                                 (int) point[0],
+                                                 (int) point[1],
+                                                 (int) point[2],
+                                                 (int) point[3]);
                 env->CallBooleanMethod(list_obj, list_add, tmprect);
             }
         }
+
+        return list_obj;
+    } catch (Exception e) {
+        jclass je = env->FindClass("java/lang/Exception");
+        env->ThrowNew(je, e.what());
+    } catch (...) {
+        jclass je = env->FindClass("java/lang/Exception");
+        env->ThrowNew(je, "Unknown exception in JNI code {nMatToBitmap}");
+    }
+}
+
+//QRCode检测
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_lib_vaccae_opencv_OpenCVJNI_qrCodeDetector(JNIEnv *env, jobject thiz, jbyteArray bytes,
+                                                jint width, jint height) {
+    try {
+        Mat src = byteArrayToMat(env, bytes, width, height);
+
+        //获取ArrayList类引用
+        jclass list_jcls = env->FindClass("java/util/ArrayList");
+        if (list_jcls == nullptr) {
+            LOGI("ArrayList没找到相关类!");
+            return 0;
+        }
+        //获取ArrayList构造函数id
+        jmethodID list_init = env->GetMethodID(list_jcls, "<init>", "()V");
+        //创建一个ArrayList对象
+        jobject list_obj = env->NewObject(list_jcls, list_init);
+        //获取ArrayList对象的add()的methodID
+        jmethodID list_add = env->GetMethodID(list_jcls, "add", "(Ljava/lang/Object;)Z");
+
+        //获取QrCode类
+        jclass qrcls = env->FindClass("lib/vaccae/opencv/QrCode");
+        //定义QrCode类中的属性
+        jfieldID qrmsg = env->GetFieldID(qrcls, "msg", "Ljava/lang/String;");
+        jfieldID qrpts = env->GetFieldID(qrcls, "points", "Ljava/util/List;");
+
+        //定义Points的List
+        jclass pts_cls = env->FindClass("java/util/ArrayList");
+        jmethodID pts_init = env->GetMethodID(pts_cls, "<init>", "()V");
+        jmethodID pts_add = env->GetMethodID(pts_cls, "add", "(Ljava/lang/Object;)Z");
+
+        //定义实例化Point的方法
+        jclass pt_cls = env->FindClass("android/graphics/PointF");
+        jmethodID pt_init = env->GetMethodID(pt_cls, "<init>", "(FF)V");
+
+        //QRCode检测
+        vector<string> resmsg;
+        vector<Point2f> respts;
+        QRCodeDetector qrCodeDetector;
+        jboolean blres = qrCodeDetector.detectAndDecodeMulti(src, resmsg, respts);
+        if (blres) {
+            for (int i = 0; i < resmsg.size(); ++i) {
+                jobject qrobj = env->AllocObject(qrcls);
+                //LOGI("msg:%s",resmsg[i].c_str());
+                //设置返回QrCode显示的信息
+                env->SetObjectField(qrobj, qrmsg, env->NewStringUTF(resmsg[i].c_str()));
+                //设置返回的坐标点
+                //创建一个ArrayList对象
+                jobject pts_obj = env->NewObject(pts_cls, pts_init);
+                //循环Point的4个坐标点
+                for (int k = 0; k < 4; ++k) {
+                    //根据当前第几个QrCode判断坐标点
+                    int idx = 4 * i + k;
+                    //实例化坐标点
+                    jobject pt_obj = env->NewObject(pt_cls, pt_init, respts[idx].x, respts[idx].y);
+                    //LOGI("point:%d x:%f y:%f",idx,respts[idx].x,respts[idx].y);
+                    //添加到List<Point>中
+                    env->CallBooleanMethod(pts_obj, pts_add, pt_obj);
+                }
+
+                //设置返回QrCode的坐标点列表
+                env->SetObjectField(qrobj, qrpts, pts_obj);
+
+                //插入到返回的列表中
+                env->CallBooleanMethod(list_obj, list_add, qrobj);
+            }
+        }
+
         return list_obj;
     } catch (Exception e) {
         jclass je = env->FindClass("java/lang/Exception");
